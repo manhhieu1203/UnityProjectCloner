@@ -128,7 +128,17 @@ namespace UnityProjectCloner
                 return;
             }
 
-            string fileName = EditorApplication.applicationPath;
+            string fileName = "";
+            switch (Application.platform)
+            {
+            case RuntimePlatform.OSXEditor:
+                fileName = EditorApplication.applicationPath + "/Contents/MacOS/Unity";
+                break;
+            default:
+                fileName = EditorApplication.applicationPath;
+                break;
+            }
+            
             string args = "-projectPath \"" + projectPath + "\"";
             Debug.Log("Opening project \"" + fileName + " " + args + "\"");
             ProjectCloner.StartHiddenConsoleProcess(fileName, args);
