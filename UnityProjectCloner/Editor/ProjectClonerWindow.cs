@@ -1,16 +1,16 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEditor;
-using UnityProjectCloner;
 using System.IO;
+using UnityEditor;
+using UnityEngine;
+using UnityProjectCloner;
 
 namespace UnityProjectCloner
 {
     /// <summary>
     /// Provides Unity Editor window for ProjectCloner.
     /// </summary>
-	public class ProjectClonerWindow : EditorWindow
+    public class ProjectClonerWindow : EditorWindow
     {
         /// <summary>
         /// True if currently open project is a clone.
@@ -31,7 +31,7 @@ namespace UnityProjectCloner
         [MenuItem("Tools/Project Cloner")]
         private static void InitWindow()
         {
-            ProjectClonerWindow window = (ProjectClonerWindow)EditorWindow.GetWindow(typeof(ProjectClonerWindow));
+            ProjectClonerWindow window = (ProjectClonerWindow) EditorWindow.GetWindow(typeof(ProjectClonerWindow));
             window.titleContent = new GUIContent("Project Cloner");
             window.Show();
         }
@@ -70,7 +70,7 @@ namespace UnityProjectCloner
                     var cloneProjectsPath = ProjectCloner.GetCloneProjectsPath();
                     for (int i = 0; i < cloneProjectsPath.Count; i++)
                     {
-                      
+
                         GUILayout.BeginVertical("GroupBox");
                         string cloneProjectPath = cloneProjectsPath[i];
                         EditorGUILayout.LabelField("Clone " + i);
@@ -93,12 +93,17 @@ namespace UnityProjectCloner
                             }
                         }
 
+                        if (GUILayout.Button("Relink"))
+                        {
+                            ProjectCloner.LinkFoldersInProject(ProjectCloner.GetCurrentProjectPath(), cloneProjectPath);
+                        }
+
                         //Offer a solution to user in-case they are stuck with deleting project
                         if (GUILayout.Button("?", GUILayout.Width(30)))
                         {
                             var openUrl = EditorUtility.DisplayDialog("Can't delete clone?",
-                            "Sometime clone can't be deleted due to it's still being opened by another unity instance running in the background." +
-                            "\nYou can read this answer from ServerFault on how to find and kill the process.", "Open Answer");
+                                "Sometime clone can't be deleted due to it's still being opened by another unity instance running in the background." +
+                                "\nYou can read this answer from ServerFault on how to find and kill the process.", "Open Answer");
                             if (openUrl)
                             {
                                 Application.OpenURL("https://serverfault.com/a/537762");
@@ -106,7 +111,7 @@ namespace UnityProjectCloner
                         }
                         GUILayout.EndHorizontal();
                         GUILayout.EndVertical();
-                      
+
                     }
                     GUILayout.EndVertical();
                     //Have difficulty with naming

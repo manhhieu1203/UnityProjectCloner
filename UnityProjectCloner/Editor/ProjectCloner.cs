@@ -1,10 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEditor;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.IO;
+using UnityEditor;
+using UnityEngine;
 using UnityProjectCloner;
 
 namespace UnityProjectCloner
@@ -32,7 +32,7 @@ namespace UnityProjectCloner
 
         public const int MaxCloneProjectCount = 10;
 
-        #region Managing clones
+#region Managing clones
         /// <summary>
         /// Creates clone from the project currently open in Unity Editor.
         /// </summary>
@@ -86,14 +86,37 @@ namespace UnityProjectCloner
             ProjectCloner.CreateProjectFolder(cloneProject);
             ProjectCloner.CopyLibraryFolder(sourceProject, cloneProject);
 
-            ProjectCloner.LinkFolders(sourceProject.assetPath, cloneProject.assetPath);
-            ProjectCloner.LinkFolders(sourceProject.projectSettingsPath, cloneProject.projectSettingsPath);
-            ProjectCloner.LinkFolders(sourceProject.packagesPath, cloneProject.packagesPath);
-            ProjectCloner.LinkFolders(sourceProject.autoBuildPath, cloneProject.autoBuildPath);
+            ProjectCloner.LinkFoldersInProject(sourceProject, cloneProject);
 
             ProjectCloner.RegisterClone(cloneProject);
 
             return cloneProject;
+        }
+
+        /// <summary>
+        /// LinkFolders
+        /// </summary>
+        /// <param name="sourceProjectPath"></param>
+        /// <param name="cloneProjectPath"></param>
+        public static void LinkFoldersInProject(string sourceProjectPath, string cloneProjectPath)
+        {
+            var sourceProject = new Project(sourceProjectPath);
+            var cloneProject = new Project(cloneProjectPath);
+
+            LinkFoldersInProject(sourceProject, cloneProject);
+        }
+
+        /// <summary>
+        /// LinkFolders
+        /// </summary>
+        /// <param name="sourceProject"></param>
+        /// <param name="cloneProject"></param>
+        public static void LinkFoldersInProject(Project sourceProject, Project cloneProject)
+        {
+            ProjectCloner.LinkFolders(sourceProject.assetPath, cloneProject.assetPath);
+            ProjectCloner.LinkFolders(sourceProject.projectSettingsPath, cloneProject.projectSettingsPath);
+            ProjectCloner.LinkFolders(sourceProject.packagesPath, cloneProject.packagesPath);
+            ProjectCloner.LinkFolders(sourceProject.autoBuildPath, cloneProject.autoBuildPath);
         }
 
         /// <summary>
@@ -138,7 +161,7 @@ namespace UnityProjectCloner
                 fileName = EditorApplication.applicationPath;
                 break;
             }
-            
+
             string args = "-projectPath \"" + projectPath + "\"";
             Debug.Log("Opening project \"" + fileName + " " + args + "\"");
             ProjectCloner.StartHiddenConsoleProcess(fileName, args);
@@ -160,26 +183,26 @@ namespace UnityProjectCloner
             //Check what OS is
             switch (Application.platform)
             {
-                case (RuntimePlatform.WindowsEditor):
-                    Debug.Log("Attempting to delete folder \"" + cloneProjectPath + "\"");
-                    string args = "/c " + @"rmdir /s/q " + string.Format("\"{0}\"", cloneProjectPath);
-                    StartHiddenConsoleProcess("cmd.exe", args);
-                   
-                    break;
-                case (RuntimePlatform.OSXEditor):
-                    throw new System.NotImplementedException("No Mac function implement yet :(");
-                    //break;
-                case (RuntimePlatform.LinuxEditor):
-                    throw new System.NotImplementedException("No linux support yet :(");
-                    //break;
-                default:
-                    Debug.LogWarning("Not in a known editor. Where are you!?");
-                    break;
+            case (RuntimePlatform.WindowsEditor):
+                Debug.Log("Attempting to delete folder \"" + cloneProjectPath + "\"");
+                string args = "/c " + @"rmdir /s/q " + string.Format("\"{0}\"", cloneProjectPath);
+                StartHiddenConsoleProcess("cmd.exe", args);
+
+                break;
+            case (RuntimePlatform.OSXEditor):
+                throw new System.NotImplementedException("No Mac function implement yet :(");
+                //break;
+            case (RuntimePlatform.LinuxEditor):
+                throw new System.NotImplementedException("No linux support yet :(");
+                //break;
+            default:
+                Debug.LogWarning("Not in a known editor. Where are you!?");
+                break;
             }
         }
-        #endregion
+#endregion
 
-        #region Creating project folders
+#region Creating project folders
         /// <summary>
         /// Creates an empty folder using data in the given Project object
         /// </summary>
@@ -207,9 +230,9 @@ namespace UnityProjectCloner
             Debug.Log("Library copy: " + destinationProject.libraryPath);
             ProjectCloner.CopyDirectoryWithProgressBar(sourceProject.libraryPath, destinationProject.libraryPath, "Cloning project '" + sourceProject.name + "'. ");
         }
-        #endregion
+#endregion
 
-        #region Creating symlinks
+#region Creating symlinks
         /// <summary>
         /// Creates a symlink between destinationPath and sourcePath (Mac version).
         /// </summary>
@@ -217,12 +240,10 @@ namespace UnityProjectCloner
         /// <param name="destinationPath"></param>
         private static void CreateLinkMac(string sourcePath, string destinationPath)
         {
-            Debug.LogWarning("This hasn't been tested yet! I am mac-less :( Please chime in on the github if it works for you.");
+            string cmd = "-s " + string.Format("\"{0}\" \"{1}\"", sourcePath, destinationPath);
+            Debug.Log("Mac hard link: " + cmd);
 
-            string cmd = "ln " + string.Format("\"{0}\" \"{1}\"", destinationPath, sourcePath);
-            Debug.Log("Mac hard link " + cmd);
-
-            ProjectCloner.StartHiddenConsoleProcess("/bin/bash", cmd);
+            ProjectCloner.StartHiddenConsoleProcess("ln", cmd);
         }
 
         /// <summary>
@@ -264,32 +285,37 @@ namespace UnityProjectCloner
         /// <param name="destinationPath"></param>
         public static void LinkFolders(string sourcePath, string destinationPath)
         {
-            if ((Directory.Exists(destinationPath) == false) && (Directory.Exists(sourcePath) == true))
-            {
-                switch (Application.platform)
-                {
-                    case (RuntimePlatform.WindowsEditor):
-                        CreateLinkWin(sourcePath, destinationPath);
-                        break;
-                    case (RuntimePlatform.OSXEditor):
-                        CreateLinkMac(sourcePath, destinationPath);
-                        break;
-                    case (RuntimePlatform.LinuxEditor):
-                        CreateLinkLunux(sourcePath, destinationPath);
-                        break;
-                    default:
-                        Debug.LogWarning("Not in a known editor. Where are you!?");
-                        break;
-                }
-            }
-            else
+            if (Directory.Exists(destinationPath))
             {
                 Debug.LogWarning("Skipping Asset link, it already exists: " + destinationPath);
+                return;
+            }
+
+            if (Directory.Exists(sourcePath) == false)
+            {
+                Debug.LogWarning("Skipping Asset link, source path is not exists: " + sourcePath);
+                return;
+            }
+
+            switch (Application.platform)
+            {
+            case (RuntimePlatform.WindowsEditor):
+                CreateLinkWin(sourcePath, destinationPath);
+                break;
+            case (RuntimePlatform.OSXEditor):
+                CreateLinkMac(sourcePath, destinationPath);
+                break;
+            case (RuntimePlatform.LinuxEditor):
+                CreateLinkLunux(sourcePath, destinationPath);
+                break;
+            default:
+                Debug.LogWarning("Not in a known editor. Where are you!?");
+                break;
             }
         }
-        #endregion
+#endregion
 
-        #region Utility methods
+#region Utility methods
         /// <summary>
         /// Returns true is the project currently open in Unity Editor is a clone.
         /// </summary>
@@ -358,6 +384,7 @@ namespace UnityProjectCloner
         public static List<string> GetCloneProjectsPath()
         {
             List<string> projectsPath = new List<string>();
+            projectsPath.Add("/Volumes/MacData4/UnityProjectClone/NMH3D_01_clone_0");
             for (int i = 0; i < MaxCloneProjectCount; i++)
             {
                 string originalProjectPath = ProjectCloner.GetCurrentProject().projectPath;
@@ -434,7 +461,7 @@ namespace UnityProjectCloner
                 copiedBytes += file.Length;
 
                 /// Display the progress bar.
-                float progress = (float)copiedBytes / (float)totalBytes;
+                float progress = (float) copiedBytes / (float) totalBytes;
                 bool cancelCopy = EditorUtility.DisplayCancelableProgressBar(
                     progressBarPrefix + "Copying '" + source.FullName + "' to '" + destination.FullName + "'...",
                     "(" + (progress * 100f).ToString("F2") + "%) Copying file '" + file.Name + "'...",
@@ -492,6 +519,6 @@ namespace UnityProjectCloner
 
             process.Start();
         }
-        #endregion
+#endregion
     }
 }
